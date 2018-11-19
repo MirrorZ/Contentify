@@ -30,7 +30,14 @@ public:
   ~CCNSwitch();
 
   const char *class_name() const { return "CCNSwitch"; }
+  const char *port_count() const{ return "4/1"; }
+  const char *processing() const{ return PUSH; }
 
+  int configure(Vector<String> &, ErrorHandler *);
+  int initialize(ErrorHandler *errh);
+  void run_timer(Timer *timer);
+  void push(int port, Packet *p);
+  
 private:
 
   std::string switch_name;
