@@ -15,6 +15,7 @@ CLICK_DECLS
 
 #define REFRESH_INTERVAL 60
 #define CLIENT_REG 0
+#define TYPE_WIDTH 12
 
 CCNSwitch::CCNSwitch()
   : _timer(this) {}
@@ -27,25 +28,18 @@ CCNSwitch::configure(Vector<String> &conf, ErrorHandler* errh)
   int ret;
   String hname = String();
   String switch_id = String();
-  //int hname;
-
-  
   
   ret = Args(conf, this, errh)
 	.read_mp("Hname", AnyArg(), hname)
     .read_mp("SwitchID", AnyArg(),switch_id)
 	.complete();
 
+  if(ret < 0) {
+	return -1;
+  }
+  
   _hname = hname.c_str();
   _switch_id = switch_id.c_str();
-  
-  click_chatter("Got %s, %s\n",hname.c_str(), switch_id.c_str());
-  
-
-  /*
-  _hname = "home";
-  _switch_id = "0";
-  */
 
   return ret;
 }
@@ -64,8 +58,8 @@ CCNSwitch::initialize(ErrorHandler *) {
 
 void
 CCNSwitch::register_station(Packet *p) {
-  station_t new_station = parse_advertisement_packet(p);
-
+  const unsigned char *buf = p->data();
+  station_t new_station = parse_advertisement_packet(buf);
   std::string station_id = new_station.id;
 
   // station present, update timestamp
@@ -97,32 +91,44 @@ CCNSwitch::generate_route_advertisement(route_t route) {
 
 void
 CCNSwitch::run_timer(Timer *) {
-  
   // Advertise oneself
   advertise_route(self_route);
-
   _timer.reschedule_after_sec(REFRESH_INTERVAL);
 }
 
 
 station_t
-CCNSwitch::parse_advertisement_packet(Packet *p) {  //, station_t *station) {
-  uint8_t plen, hlen;
-  uint32_t uid; 
-  sscanf((char *)p,"%c%c%d",&plen,&hlen,&uid);
-  p+=5;
-  uint8_t num_attr;
-  char typ[12];
-  sscanf((char *)p,"%c",&num_attr);
-  num_attr &= 31; // mask first 4 bits
-  p++;
-  memcpy(typ, p, 12);
+CCNSwitch::parse_advertisement_packet(const unsigned char *buf) {
+
+  uint8_t plen, hlen, num_attr;
+  uint32_t uid;
+
+  const char *p = reinterpret_cast<const char *>(buf);
+  
+  sscanf(p,"%c%c%c",&plen,&hlen,&num_attr);
+  num_attr &= 0x0f; // mask first 4 bits
+  click_chatter("num_attr :%c",num_attr);
+  
+
+  p+=3;
+
+  sscanf(p,"%d",&uid);
+  click_chatter("UID: %s",std::to_string(uid));
+  
+  p+=4;
+  
+  char typ[TYPE_WIDTH];
+  memcpy(typ, p, TYPE_WIDTH);
+
+  for(int i=0;i<12;i++)
+	click_chatter("type: %x",typ[i]);
+
   p+=12;
   char k[32], v[32];
   std::string key, value;
   std::map<std::string,std::string> attrs;
   while(num_attr>0) {
-	sscanf((char *)p,"%s:%s",k,v);
+	sscanf(p,"%s:%s",k,v);
 	key = k;
 	value = v;
 	attrs.insert(std::pair<std::string,std::string>(key,value));
@@ -130,7 +136,7 @@ CCNSwitch::parse_advertisement_packet(Packet *p) {  //, station_t *station) {
   }
   station_t station;
   
-  station.id = std::to_string(uid);
+  station.id = uid;
   station.timestamp = Timestamp::now();
   station.type = typ;
   station.attributes = attrs;

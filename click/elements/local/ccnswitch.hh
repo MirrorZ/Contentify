@@ -25,22 +25,22 @@ CLICK_DECLS
  * Output[0] - output
  */
 
-    typedef struct {
-	std::string id;
-	Timestamp timestamp;
-	std::string type;
-	std::map<std::string,std::string> attributes;
-  }station_t;
+typedef struct {
+  std::string id;
+  Timestamp timestamp;
+  std::string type;
+  std::map<std::string,std::string> attributes;
+}station_t;
 
-  typedef struct {
-	std::string h_name;
+typedef struct {
+  std::string h_name;
 
-	// Next hop for local sensors is itself
-	// Aggregation is supported by expoanding stations associated
-	// with the requested type
-	std::string next_hop;
-	unsigned int cost;
-  }route_t;
+  // Next hop for local sensors is itself
+  // Aggregation is supported by expoanding stations associated
+  // with the requested type
+  std::string next_hop;
+  unsigned int cost;
+}route_t;
 
 
 class CCNSwitch : public Element {
@@ -77,7 +77,7 @@ public:
   void register_station(Packet *);
   void advertise_route(route_t);
   Packet *generate_route_advertisement(route_t);
-  station_t parse_advertisement_packet(Packet *);
+  station_t parse_advertisement_packet(const unsigned char *);
   
 };
 
