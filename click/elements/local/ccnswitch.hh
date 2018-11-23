@@ -13,6 +13,7 @@
 
 CLICK_DECLS
 
+
 /*
  *
  * ccnswitch element
@@ -24,33 +25,62 @@ CLICK_DECLS
  * Output[0] - output
  */
 
+    typedef struct {
+	std::string id;
+	Timestamp timestamp;
+	std::string type;
+	std::map<std::string,std::string> attributes;
+  }station_t;
+
+  typedef struct {
+	std::string h_name;
+
+	// Next hop for local sensors is itself
+	// Aggregation is supported by expoanding stations associated
+	// with the requested type
+	std::string next_hop;
+	unsigned int cost;
+  }route_t;
+
+
 class CCNSwitch : public Element {
 public:
   CCNSwitch();
   ~CCNSwitch();
 
   const char *class_name() const { return "CCNSwitch"; }
-  const char *port_count() const{ return "4/1"; }
-  const char *processing() const{ return PUSH; }
+  const char *port_count() const { return "4/2"; }
+  const char *processing() const { return PUSH; }
 
-  int configure(Vector<String> &, ErrorHandler *);
-  int initialize(ErrorHandler *errh);
-  void run_timer(Timer *timer);
+
+  int configure(Vector<String> &, ErrorHandler *) CLICK_COLD;
+  int initialize(ErrorHandler *errh) CLICK_COLD;
+  void run_timer(Timer *);
+
   void push(int port, Packet *p);
   
-private:
+  //private:
 
-  std::string switch_name;
+  Timer _timer;
+
+  std::string _switch_id;
+  std::string _hname;
   
-  struct Station {
-	std::string id;
-	uint64_t timestamp;
-	std::map<string, string> attributes;
-  };
+  // map of hierarchical names to the route
+  std::map<std::string,route_t> route_table;
+  route_t self_route;
 
-  std::map<string, Station> stations;
-  void register(Packet *p);
-}
+  // Maps every type supported to the coressponding set of sensors
+  // The type is used for route advertisement
+  std::map<std::string,station_t> stations;
+
+  void register_station(Packet *);
+  void advertise_route(route_t);
+  Packet *generate_route_advertisement(route_t);
+  station_t parse_advertisement_packet(Packet *);
+  
+};
 
 CLICK_ENDDECLS
 #endif
+ 
