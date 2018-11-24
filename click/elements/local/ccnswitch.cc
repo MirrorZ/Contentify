@@ -100,51 +100,35 @@ CCNSwitch::run_timer(Timer *) {
 station_t
 CCNSwitch::parse_advertisement_packet(const unsigned char *buf) {
 
-  uint8_t plen, hlen, num_attr;
-  uint32_t uid;
+  struct adv_frame{
+	uint8_t plen;
+	uint8_t hlen;
+	uint8_t num_attr;
+	char uid[9];
+	char typ[12];
+	char attr[][20];
+  };
 
-  const char *p = reinterpret_cast<const char *>(buf);
+  adv_frame *p = (adv_frame *)buf;
+  // mask first 4 bits for num_attr
+  p->num_attr &= 0x0f;  
   
-  sscanf(p,"%c%c%c",&plen,&hlen,&num_attr);
-  num_attr &= 0x0f; // mask first 4 bits
-  click_chatter("num_attr :%c",num_attr);
-  
-
-  p+=3;
-
-  sscanf(p,"%d",&uid);
-  click_chatter("UID: %s",std::to_string(uid));
-  
-  p+=4;
-  
-  char typ[TYPE_WIDTH];
-  memcpy(typ, p, TYPE_WIDTH);
-
-  for(int i=0;i<12;i++)
-	click_chatter("type: %x",typ[i]);
-
-  p+=12;
-  char k[32], v[32];
-  std::string key, value;
-  std::map<std::string,std::string> attrs;
-  while(num_attr>0) {
-	sscanf(p,"%s:%s",k,v);
-	key = k;
-	value = v;
-	attrs.insert(std::pair<std::string,std::string>(key,value));
-	num_attr--;
-  }
   station_t station;
-  
-  station.id = uid;
+
+  std::vector<std::string> attrs;
+    
+  for(int c=0; c<int(p->num_attr); c++) {
+	attrs.push_back(p->attr[c]);
+  }
+
+  station.id = p->uid;
   station.timestamp = Timestamp::now();
-  station.type = typ;
+  station.type = p->typ;
   station.attributes = attrs;
 
-		   
-
+  click_chatter("Hlen :%d Plen: %d Num_attr: %d, uid: %s, type:%s, attributes:%s, %s",p->hlen,p->plen,p->num_attr,station.id.c_str(),station.type.c_str(),attrs[0].c_str(),attrs[1].c_str());
+  
   return station;
-
 }
 
 void

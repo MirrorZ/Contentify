@@ -1,14 +1,14 @@
 
 ccn::CCNSwitch(Hname home, SwitchID 90108khf)
 
-fd::FromDevice(wlan1, SNIFFER false) 
-//kernel_tap :: KernelTap(192.168.1.0/24)
+//fd::FromDevice(wlan1, SNIFFER false) 
+kernel_tap :: KernelTap(192.168.1.0/24)
 
 pre_cl::Classifier(0/0880)
 input_cl::Classifier(2/1?, 2/2?, 2/4?, 2/8?) 
 
-//	kernel_tap
-	fd
+	kernel_tap
+//	fd
 	-> RadiotapDecap()
 	-> pre_cl
 	-> Strip(30)

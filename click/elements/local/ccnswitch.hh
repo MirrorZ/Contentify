@@ -29,7 +29,7 @@ typedef struct {
   std::string id;
   Timestamp timestamp;
   std::string type;
-  std::map<std::string,std::string> attributes;
+  std::vector<std::string> attributes;
 }station_t;
 
 typedef struct {
