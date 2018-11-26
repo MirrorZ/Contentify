@@ -65,19 +65,38 @@ public:
 
   std::string _switch_id;
   std::string _hname;
+  std::vector<std::string> _parent_hname;
+  uint32_t _fib_port;
   
   // map of hierarchical names to the route
   std::map<std::string,route_t> route_table;
+
+  struct addr_pair {
+	std::string saddr;
+	std::string daddr;
+  };
+
+  // FIB maintains a map of port and src, dst addr pair and src port
+  std::map<uint32_t, std::pair<struct addr_pair, uint32_t> > fib; 
+
   route_t self_route;
 
   // Maps every type supported to the coressponding set of sensors
   // The type is used for route advertisement
   std::map<std::string,station_t> stations;
 
+  std::vector<std::string>generate_parent(std::string);
   void register_station(Packet *);
   void advertise_route(route_t);
+  std::string find_next_hop(std::string, std::string, std::vector<std::string>);
   Packet *generate_route_advertisement(route_t);
   station_t parse_advertisement_packet(const unsigned char *);
+  Packet *forward_data_request(Packet *);
+  Packet *forward_data_response(Packet *);
+  Packet *update_packet(std::string, std::string, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, Packet *);
+  uint32_t insert_fib(std::string, uint32_t, std::string);
+  bool lookup_fib(uint32_t, std::string *, std::string *, uint32_t *);
+  std::string filter_station(std::string, std::vector<std::string>);
   
 };
 
