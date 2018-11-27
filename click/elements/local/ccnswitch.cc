@@ -51,7 +51,6 @@ CCNSwitch::initialize(ErrorHandler *) {
 
   _fib_port = 32768;
   _parent_hname = generate_parent(_hname);
-
   
   self_route.h_name = this->_hname;
   self_route.cost = 1;
@@ -73,6 +72,7 @@ CCNSwitch::generate_parent(std::string hname) {
 	if(pos == -1)
 	  break;
 	name = hname.substr(0,pos);
+	hname = name;
 	parent.push_back(name);
   }
   
@@ -89,9 +89,18 @@ CCNSwitch::register_station(Packet *p) {
   if(stations.find(station_id)!=stations.end()) {
 	new_station.timestamp = Timestamp::now();
 	stations[new_station.id] = new_station;
-	click_chatter("Updated timestamp %lu", stations.size());
-	station_t st = stations.begin()->second;
-	click_chatter("ID: %s Timestamp: %s Type: %s Attributes: %s, %s", st.id.c_str(), st.timestamp.unparse().c_str(), st.type.c_str(), st.attributes[0].c_str(), st.attributes[1].c_str());
+	
+	station_t st = stations[new_station.id];
+
+	click_chatter("\n\n==============All Stations=======================");
+	std::map<std::string, station_t>::iterator it;
+	for(it = stations.begin(); it!= stations.end(); it++) {
+	  station_t stn = it->second;
+	  click_chatter("ID: %s Timestamp: %s Type: %s", stn.id.c_str(), stn.timestamp.unparse().c_str(), stn.type.c_str());
+	}
+
+	click_chatter("====================================================");
+	
   }
   else  { // new registration
 	stations.insert(std::pair<std::string,station_t>(station_id, new_station));
@@ -147,11 +156,10 @@ CCNSwitch::parse_advertisement_packet(const unsigned char *buf) {
   }
 
   station.id = p->uid;
+
   station.timestamp = Timestamp::now();
   station.type = p->typ;
   station.attributes = attrs;
-
-  click_chatter("Hlen :%d Plen: %d Num_attr: %d, uid: %s, type:%s, attributes:%s, %s",p->hlen,p->plen,p->num_attr,station.id.c_str(),station.type.c_str(),attrs[0].c_str(),attrs[1].c_str());
  
   return station;
 }
@@ -173,6 +181,10 @@ CCNSwitch::forward_data_request(Packet *p) {
 
   
   data_req *meta = (data_req *)buf;
+  meta->num_attr &= 0x0f; // mask first 4 bits
+
+  meta->port = ntohl(meta->port);
+  
   buf += 20;
 
   int sa_len = int(meta->src_len);
@@ -196,6 +208,8 @@ CCNSwitch::forward_data_request(Packet *p) {
 	attributes.push_back(attrs);
   }
 
+  click_chatter("Got request with plen:%d hlen:%d num_attr:%d sa_len:%d port:%d type: %s sa: %s da:%s\n\n", int(meta->plen), int(meta->hlen), num_attrs, sa_len, int(meta->port), meta->type, sa, da);
+  
   std::string destination = da;
   std::string source = sa;
   std::string next_hop = find_next_hop(destination, meta->type, attributes);
@@ -203,12 +217,16 @@ CCNSwitch::forward_data_request(Packet *p) {
 
   // Broadcast to other switches
   if(std::find(_parent_hname.begin(), _parent_hname.end(), destination) != _parent_hname.end()) {
+	click_chatter("Broadcasting");
 	output(1).push(p);
   }
 
+  
+  click_chatter("Finding next hop");
   if(!next_hop.empty()) {
-	f_port = insert_fib(source, meta->port, next_hop);
-	return update_packet(_hname, next_hop, f_port, meta->plen, meta->hlen, sa_len, da_len, p);
+	f_port = insert_fib(source, int(meta->port), next_hop);
+	click_chatter("Next hop:%s, fport:%d", next_hop.c_str(),f_port);
+	return update_packet(_hname, next_hop, f_port, int(meta->plen), int(meta->hlen), sa_len, da_len, p);
   }
 
   return p;
@@ -259,30 +277,29 @@ CCNSwitch::forward_data_response(Packet *p) {
   return update_packet(src, dst, portno, meta->plen, meta->hlen, sa_len, da_len, p);
 }
 
-Packet *
-CCNSwitch::update_packet(std::string src, std::string dst, uint32_t port, uint32_t old_plen, uint32_t old_hlen, uint32_t old_src_len, uint32_t old_dst_len, Packet *p) {
+Packet 
+CCNSwitch::update_packet(std::string src, std::string dst, uint32_t port, uint8_t old_plen, uint8_t old_hlen, uint8_t old_src_len, uint8_t old_dst_len, Packet *p) {
   
   WritablePacket *q = p->uniqueify();
-  uint32_t src_len = src.length();
-  uint32_t dst_len = dst.length();
-  uint32_t hlen = old_hlen - (old_src_len + old_dst_len) + (src_len + dst_len);
-  uint32_t plen = old_plen - old_hlen + hlen;
+  uint8_t src_len = src.length();
+  uint8_t dst_len = dst.length();
+  uint8_t hlen = old_hlen - (old_src_len + old_dst_len) + (src_len + dst_len);
+  uint8_t plen = old_plen - old_hlen + hlen;
 
   unsigned char *buf = q->data();
 
-  char plen_str[2], hlen_str[2], src_len_str[2], port_str[5];
-  sprintf(plen_str,"%d",plen);
-  sprintf(hlen_str,"%d",hlen);
-  sprintf(port_str, "%d", port);
-  sprintf(src_len_str,"%d",src_len);
+  click_chatter("Before string %d %d %d %d", plen, hlen, port, src_len);
+    
+  memcpy(buf, (char *)&plen, 1);
+  memcpy(buf+1, (char *)&hlen, 1);
+  memcpy(buf+3, (char *)&src_len, 1);
+
+  port = htonl(port);
+  memcpy(buf+4, (char *)&(port), 4);
   
-  // Update relevant fields, could be done better
-  strncpy((char *)(buf), plen_str, 1);
-  strncpy((char *)(buf+1), hlen_str, 1);
-  strncpy((char *)(buf+3), src_len_str, 1);
-  strncpy((char *)(buf+4), port_str, 4);
-  strncpy((char *)(buf+20), src.c_str(), src_len);
-  strncpy((char *)(buf+20+src_len), dst.c_str(), dst_len);
+  memcpy(buf+20, src.c_str(), src_len);
+  
+  memcpy(buf+20+src_len, dst.c_str(), dst_len);
   
   return q;
 }
@@ -310,10 +327,12 @@ CCNSwitch::filter_station(std::string type, std::vector<std::string>attrs) {
   std::map<std::string,station_t>::iterator it;
   std::string station;
   
-  // we have the type
-  if((it=stations.find(type)) != stations.end()) {
+  // look for matching type
+  for(it=stations.begin(); it!=stations.end(); it++) {
+	if((it->second).type == type) {
+	  return it->first;
+	}
 	// compare attrs
-	station = stations[type].id;
   }
 
   return station;

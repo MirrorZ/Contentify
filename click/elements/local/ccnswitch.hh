@@ -81,8 +81,7 @@ public:
 
   route_t self_route;
 
-  // Maps every type supported to the coressponding set of sensors
-  // The type is used for route advertisement
+  // Maps every station id to station attributes
   std::map<std::string,station_t> stations;
 
   std::vector<std::string>generate_parent(std::string);
@@ -93,7 +92,7 @@ public:
   station_t parse_advertisement_packet(const unsigned char *);
   Packet *forward_data_request(Packet *);
   Packet *forward_data_response(Packet *);
-  Packet *update_packet(std::string, std::string, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, Packet *);
+  Packet *update_packet(std::string, std::string, uint32_t, uint8_t, uint8_t, uint8_t, uint8_t, Packet *);
   uint32_t insert_fib(std::string, uint32_t, std::string);
   bool lookup_fib(uint32_t, std::string *, std::string *, uint32_t *);
   std::string filter_station(std::string, std::vector<std::string>);
