@@ -9,5 +9,5 @@ inf_src :: InfiniteSource(DATA \< //<ffff>, LIMIT 1, ACTIVE true, STOP true)
 	-> SetTXRate(2)
 	-> RadiotapEncap()
 	-> Print(Ping,254)
-//	-> ToDevice(wlan0);
-	-> ToDevice(tap24);
+	-> ToDevice(wlan0);
+//	-> ToDevice(tap0);
