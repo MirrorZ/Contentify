@@ -277,7 +277,7 @@ CCNSwitch::forward_data_response(Packet *p) {
   return update_packet(src, dst, portno, meta->plen, meta->hlen, sa_len, da_len, p);
 }
 
-Packet 
+Packet *
 CCNSwitch::update_packet(std::string src, std::string dst, uint32_t port, uint8_t old_plen, uint8_t old_hlen, uint8_t old_src_len, uint8_t old_dst_len, Packet *p) {
   
   WritablePacket *q = p->uniqueify();
@@ -343,7 +343,7 @@ CCNSwitch::insert_fib(std::string src, uint32_t port, std::string dst) {
   uint32_t portno;
 
   // next free port
-  _fib_port = (_fib_port + 1) % 65536;
+  _fib_port = 1024 + ((_fib_port + 1) % 64512);
 
   addr_pair fib_pair;
   
