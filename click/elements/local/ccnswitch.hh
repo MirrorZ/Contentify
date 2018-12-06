@@ -53,8 +53,8 @@ public:
   const char *processing() const { return PUSH; }
 
 
-  int configure(Vector<String> &, ErrorHandler *) CLICK_COLD;
-  int initialize(ErrorHandler *errh) CLICK_COLD;
+  int configure(Vector<String> &, ErrorHandler *);
+  int initialize(ErrorHandler *errh);
   void run_timer(Timer *);
 
   void push(int port, Packet *p);

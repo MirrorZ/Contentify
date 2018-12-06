@@ -365,11 +365,13 @@ CCNSwitch::lookup_fib(uint32_t port, std::string *da, std::string *sa, uint32_t 
 	return false;
   }
 
+  std::pair<struct addr_pair, uint32_t> p = it->second;
+  
   // get the fib entry
-  struct addr_pair fib_pair = std::get<0>(it->second);
+  struct addr_pair fib_pair = p.first;
   *sa = fib_pair.saddr;
   *da = fib_pair.daddr;
-  *portno = std::get<1>(it->second);
+  *portno = p.second;
   
   return true;
 }
