@@ -1,7 +1,7 @@
 
 ccn::CCNSwitch(Hname /CMU/WEH/4F/S, SwitchID 90108khf)
 
-fd::FromDevice(wlan1, SNIFFER true) 
+fd::FromDevice(wlan0, SNIFFER true) 
 //kernel_tap1 :: KernelTap(192.168.1.0/24)
 
 
